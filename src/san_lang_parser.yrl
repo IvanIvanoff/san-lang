@@ -10,6 +10,7 @@ Nonterminals
   access_expr access_expr_key
   function_call function_call_args_list function_call_arg
   lambda_fn lambda_args
+  match_op
 .
 
 Terminals
@@ -23,6 +24,8 @@ Terminals
   '+' '-' '*' '/'
   %% comparison operators
   '==' '!=' '<' '<=' '>' '>='
+  %% match operator
+  '='
   %% other
   '(' ')' '[' ']' ','
   %% lambda tokens
@@ -44,6 +47,7 @@ Left 100 comparison_comp_op. %% == !=
 Left 200 comparison_rel_op.  %% > < >= <=
 Left 300 dual_arithmetic_op. %% + -
 Left 400 mult_arithmetic_op. %% * /
+Right 1000 match_op.
 
 grammar -> eoe : {'__block__', []}.
 grammar -> expr_list : {'__block__', '$1'}.
@@ -76,7 +80,16 @@ expr -> expr or_op expr : {'$2', '$1', '$3'}.
 expr -> expr comparison_comp_op expr : {'$2', '$1', '$3'}.
 expr -> expr comparison_rel_op expr : {'$2', '$1', '$3'}.
 
+%% Handle matching
+expr -> identifier match_op expr : {'$2', '$1', '$3'}.
+
+%% Handle values
 expr -> value : '$1'.
+
+expr -> lambda_fn : '$1'.
+
+%% match op
+match_op -> '=' : '='.
 
 %% Values
 value -> int : '$1'.

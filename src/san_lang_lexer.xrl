@@ -15,6 +15,7 @@ FALSE             = false
 NEWLINE           = (\r\n|\r|\n)
 
 Rules.
+\=                : {token, {'=',  TokenLoc}}.
 \;                : {token, {';',  TokenLoc}}.
 \+                : {token, {'+',  TokenLoc}}.
 \-                : {token, {'-',  TokenLoc}}.
