@@ -1,6 +1,7 @@
 Nonterminals
   grammar
-  expr
+  expr expr_list
+  eoe eol
   value
   list list_elements
   dual_arithmetic_op mult_arithmetic_op
@@ -28,6 +29,8 @@ Terminals
   'fn' '->' 'end'
   %% boolean operators
   'and' 'or'
+  %% end of expression
+  ';' newline
 .
 
 Rootsymbol
@@ -42,7 +45,23 @@ Left 200 comparison_rel_op.  %% > < >= <=
 Left 300 dual_arithmetic_op. %% + -
 Left 400 mult_arithmetic_op. %% * /
 
-grammar -> expr : '$1'.
+grammar -> eoe : {'__block__', []}.
+grammar -> expr_list : {'__block__', '$1'}.
+grammar -> eoe expr_list : {'__block__', '$2'}.
+grammar -> expr_list eoe : {'__block__', '$1'}.
+grammar -> eoe expr_list eoe : {'__block__', '$2'}.
+grammar -> '$empty' : {'__block__',  []}.
+
+%% end of expression
+eol -> newline : '$1'.
+eoe -> ';' : '$1'.
+eoe -> eol : '$1'.
+eoe -> eol ';' : '$1'.
+eoe -> ';' eol : '$1'.
+
+%% expr
+expr_list -> expr : ['$1'].
+expr_list -> expr_list eoe expr: ['$3' | '$1'].
 
 %% Handle parentheses
 expr -> '(' expr ')' : '$2'.

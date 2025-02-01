@@ -30,11 +30,16 @@ defmodule SanLang do
   The `env` parameter is optional and defaults to an empty environment. It can be used to pass
   local bindings (var) or environment variable bindings (@env_var).
   """
-  @spec eval(String.t(), Environment.t()) :: {:ok, any()} | {:error, String.t()}
-  def eval(input, env \\ Environment.new()) when is_binary(input) do
+  @spec eval(String.t(), Keyword.t()) :: {:ok, any()} | {:error, String.t()}
+  def eval(input, opts \\ []) when is_binary(input) do
+    env = Keyword.get(opts, :env, Environment.new())
+
     with {:ok, ast} <- string_to_ast(input),
          result <- Interpreter.eval(ast, env) do
-      {:ok, result}
+      case Keyword.get(opts, :dbg, false) do
+        true -> {:ok, result}
+        false -> {:ok, List.last(result)}
+      end
     else
       error ->
         handle_error(error)
@@ -44,9 +49,9 @@ defmodule SanLang do
   @doc ~s"""
   Same as eval/2, but raises on error.
   """
-  @spec eval(String.t(), Environment.t()) :: any() | no_return
-  def eval!(input, env \\ Environment.new()) when is_binary(input) do
-    case eval(input, env) do
+  @spec eval(String.t(), Keyword.t()) :: any() | no_return
+  def eval!(input, opts \\ []) when is_binary(input) do
+    case eval(input, opts) do
       {:ok, result} -> result
       {:error, error} -> raise(error)
     end
@@ -55,6 +60,17 @@ defmodule SanLang do
   def run() do
     do_run(1)
   end
+
+  def string_to_ast(input) when is_binary(input) do
+    input_charlist = String.to_charlist(input)
+
+    with {:ok, tokens, _} <- :san_lang_lexer.string(input_charlist),
+         {:ok, ast} <- :san_lang_parser.parse(tokens) do
+      {:ok, ast}
+    end
+  end
+
+  # Private functions
 
   defp do_run(n) do
     input = IO.gets("#{n}> ") |> String.trim()
@@ -76,15 +92,6 @@ defmodule SanLang do
     e ->
       IO.puts([IO.ANSI.red(), Exception.message(e), IO.ANSI.reset()])
       do_run(n + 1)
-  end
-
-  defp string_to_ast(input) when is_binary(input) do
-    input_charlist = String.to_charlist(input)
-
-    with {:ok, tokens, _} <- :san_lang_lexer.string(input_charlist),
-         {:ok, ast} <- :san_lang_parser.parse(tokens) do
-      {:ok, ast}
-    end
   end
 
   defp handle_error({:error, {location, :san_lang_parser, errors_list}}) do

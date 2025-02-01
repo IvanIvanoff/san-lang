@@ -12,8 +12,10 @@ KW_AND            = and
 KW_OR             = or
 TRUE              = true
 FALSE             = false
+NEWLINE           = (\r\n|\r|\n)
 
 Rules.
+\;                : {token, {';',  TokenLoc}}.
 \+                : {token, {'+',  TokenLoc}}.
 \-                : {token, {'-',  TokenLoc}}.
 \*                : {token, {'*',  TokenLoc}}.
@@ -42,6 +44,7 @@ Rules.
 {IDENTIFIER}      : {token, {identifier, TokenLoc, to_binary(TokenChars)}}.
 {FLOAT}           : {token, {float, TokenLoc, to_float(TokenChars)}}.
 {INT}             : {token, {int, TokenLoc, to_integer(TokenChars)}}.
+{NEWLINE}+        : {token, {newline, TokenLoc}}.
 {WHITESPACE}+     : skip_token.
 
 Erlang code.

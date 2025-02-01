@@ -9,6 +9,16 @@ defmodule SanLang.Interpreter do
     defexception [:message]
   end
 
+  def eval({:__block__, exprs}, env) do
+    Enum.reduce(exprs, {[], env}, fn expr, {result_acc, env_acc} ->
+      case eval(expr, env_acc) do
+        {value, new_env} -> {[value | result_acc], new_env}
+        value -> {[value | result_acc], env_acc}
+      end
+    end)
+    |> elem(0)
+  end
+
   # Terminal values
   def eval({:int, _, value}, _env), do: value
   def eval({:float, _, value}, _env), do: value

@@ -1,6 +1,44 @@
 defmodule SanLangTest do
   use ExUnit.Case
 
+  test "multiline expressions evaluates to the last expression" do
+    # can separate expressions with ;
+    assert SanLang.eval!("1+2; 2+3; 3+4") == 7
+
+    assert SanLang.eval!("""
+           1+2
+           2+3; 3+4
+           """) == 7
+
+    assert SanLang.eval!("""
+           1+2;
+           2+3
+           3+4
+           """) == 7
+  end
+
+  test "multiline expressions dbg: true" do
+    # can separate expressions with ;
+    assert SanLang.eval!("1+2; 2+3; 3+4", dbg: true) == [3, 5, 7]
+
+    assert SanLang.eval!(
+             """
+             1+2
+             2+3; 3+4
+             """,
+             dbg: true
+           ) == [3, 5, 7]
+
+    assert SanLang.eval!(
+             """
+             1+2;
+             2+3
+             3+4
+             """,
+             dbg: true
+           ) == [3, 5, 7]
+  end
+
   test "literal values are evaluated to themselves" do
     assert SanLang.eval!("1") == 1
     assert SanLang.eval!("3.14") == 3.14
@@ -19,8 +57,8 @@ defmodule SanLangTest do
     env = SanLang.Environment.new()
     env = SanLang.Environment.put_env_bindings(env, %{"a" => 1, "b" => "some string value"})
 
-    assert SanLang.eval!("@a", env) == 1
-    assert SanLang.eval!("@b", env) == "some string value"
+    assert SanLang.eval!("@a", env: env) == 1
+    assert SanLang.eval!("@b", env: env) == "some string value"
   end
 
   test "access operator" do
@@ -31,12 +69,12 @@ defmodule SanLangTest do
         "slugs" => %{"bitcoin" => %{"github_orgs" => ["bitcoin-core-dev", "bitcoin"]}}
       })
 
-    assert SanLang.eval!(~s|@slugs["bitcoin"]|, env) == %{
+    assert SanLang.eval!(~s|@slugs["bitcoin"]|, env: env) == %{
              "github_orgs" => ["bitcoin-core-dev", "bitcoin"]
            }
 
     # The access operator can be chained
-    assert SanLang.eval!(~s|@slugs["bitcoin"]["github_orgs"]|, env) == [
+    assert SanLang.eval!(~s|@slugs["bitcoin"]["github_orgs"]|, env: env) == [
              "bitcoin-core-dev",
              "bitcoin"
            ]
@@ -95,8 +133,8 @@ defmodule SanLangTest do
         "data" => [1, 2, 3]
       })
 
-    assert SanLang.eval!("map(@data, fn x -> x * 2 end)", env) == [2, 4, 6]
-    assert SanLang.eval!("map(@data, fn val -> val end)", env) == [1, 2, 3]
+    assert SanLang.eval!("map(@data, fn x -> x * 2 end)", env: env) == [2, 4, 6]
+    assert SanLang.eval!("map(@data, fn val -> val end)", env: env) == [1, 2, 3]
   end
 
   test "filter/2" do
@@ -108,9 +146,17 @@ defmodule SanLangTest do
         "data2" => [1, 2, 3.14, 4, 5, 6.15]
       })
 
-    assert SanLang.eval!(~s|filter(@data, fn x -> x["key"] >= 3 end)|, env) == [%{"key" => 3}]
-    assert SanLang.eval!(~s|filter(@data2, fn x -> x >= 3 end)|, env) == [3.14, 4, 5, 6.15]
-    assert SanLang.eval!(~s|filter(@data2, fn x -> x > 3 and x <= 5.5 end)|, env) == [3.14, 4, 5]
+    assert SanLang.eval!(~s|filter(@data, fn x -> x["key"] >= 3 end)|, env: env) == [
+             %{"key" => 3}
+           ]
+
+    assert SanLang.eval!(~s|filter(@data2, fn x -> x >= 3 end)|, env: env) == [3.14, 4, 5, 6.15]
+
+    assert SanLang.eval!(~s|filter(@data2, fn x -> x > 3 and x <= 5.5 end)|, env: env) == [
+             3.14,
+             4,
+             5
+           ]
   end
 
   test "map/2 + flat_map/2 + map_keys/1" do
@@ -126,12 +172,12 @@ defmodule SanLangTest do
 
     assert SanLang.eval!(
              ~s|flat_map(map_keys(@projects), fn slug -> @projects[slug]["github_organizations"] end)|,
-             env
+             env: env
            ) == ["bitcoin", "bitcoin-core-dev", "santiment"]
 
     assert SanLang.eval!(
              ~s|map(map_keys(@projects), fn slug -> @projects[slug]["github_organizations"] end)|,
-             env
+             env: env
            ) == [["bitcoin", "bitcoin-core-dev"], ["santiment"]]
   end
 
@@ -140,7 +186,7 @@ defmodule SanLangTest do
 
     env = SanLang.Environment.put_env_bindings(env, %{"pi" => 3.14, "vals" => %{"pi" => 3.14}})
 
-    assert SanLang.eval!("@pi * 1000", env) == 3140.0
-    assert SanLang.eval!(~s|@vals["pi"] * 1000|, env) == 3140.0
+    assert SanLang.eval!("@pi * 1000", env: env) == 3140.0
+    assert SanLang.eval!(~s|@vals["pi"] * 1000|, env: env) == 3140.0
   end
 end
