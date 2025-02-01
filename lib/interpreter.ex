@@ -10,13 +10,28 @@ defmodule SanLang.Interpreter do
   end
 
   def eval({:__block__, exprs}, env) do
-    Enum.reduce(exprs, {[], env}, fn expr, {result_acc, env_acc} ->
+    exprs
+    |> Enum.reverse()
+    |> Enum.reduce({[], env}, fn expr, {result_acc, env_acc} ->
       case eval(expr, env_acc) do
         {value, new_env} -> {[value | result_acc], new_env}
         value -> {[value | result_acc], env_acc}
       end
     end)
     |> elem(0)
+    |> Enum.reverse()
+  end
+
+  def eval({:=, {:identifier, _, name}, expr}, env) do
+    value =
+      case expr do
+        {:lambda_fn, _args, _body} = lambda -> lambda
+        _ -> eval(expr, env)
+      end
+
+    env = Environment.add_local_binding(env, name, value)
+
+    {value, env}
   end
 
   # Terminal values
