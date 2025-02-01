@@ -10,6 +10,9 @@ defmodule SanLang.Interpreter do
   end
 
   def eval({:__block__, exprs}, env) do
+    # Blocks get clear local bindings
+    env = Environment.clear_local_bindings(env)
+
     exprs
     |> Enum.reverse()
     |> Enum.reduce({[], env}, fn expr, {result_acc, env_acc} ->
