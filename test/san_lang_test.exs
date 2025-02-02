@@ -43,9 +43,15 @@ defmodule SanLangTest do
     assert SanLang.eval!("x = 1") == 1
     assert SanLang.eval!("x = 1; x + 5") == 6
 
-    assert SanLang.eval("""
+    assert SanLang.eval!("""
            data = [1,2,3,4,5]
            double = fn x -> x * 2 end
+           map(data, double)
+           """) == [2, 4, 6, 8, 10]
+
+    assert SanLang.eval!("""
+           data = [1,2,3,4,5]
+            double = fn x -> x * 2 end
            map(data, double)
            """) == [2, 4, 6, 8, 10]
   end
