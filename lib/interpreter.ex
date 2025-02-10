@@ -43,8 +43,30 @@ defmodule SanLang.Interpreter do
   def eval({:ascii_string, _, value}, _env), do: value
   def eval({:env_var, _, _} = env_var, env), do: eval_env_var(env_var, env)
   def eval({:identifier, _, _} = identifier, env), do: eval_identifier(identifier, env)
-  def eval({:lambda_fn, _args, _body} = lambda, env), do: eval_lambda_fn(lambda, env)
   def eval({:list, _} = list, env), do: eval_list(list, env)
+  def eval({:lambda_fn, _args, _body} = lambda, env), do: eval_lambda_fn(lambda, env)
+
+  def eval(
+        {:lambda_fn_call, {:lambda_fn, args_names, _body} = lambda, {:list, _} = args_values},
+        env
+      ) do
+    args_values = eval(args_values, env)
+
+    env =
+      [args_names, args_values]
+      |> Enum.zip()
+      |> Enum.reduce(env, fn {{:identifier, _, name}, value}, acc_env ->
+        Environment.add_local_binding(acc_env, name, value)
+      end)
+
+    eval(lambda, env)
+  end
+
+  def eval({:lambda_fn_call, {:identifier, _args, name}, args}, env) do
+    {:ok, lambda_fn} = Environment.get_local_binding(env, name)
+
+    eval({:lambda_fn_call, lambda_fn, args}, env)
+  end
 
   def eval({{boolean_op, _}, _, _} = boolean_expr, env) when boolean_op in [:and, :or],
     do: eval_boolean_expr(boolean_expr, env)
@@ -146,6 +168,8 @@ defmodule SanLang.Interpreter do
   end
 
   defp eval_lambda_fn({:lambda_fn, _args, body}, env) do
+    # This is called from within filter/map/etc. where the arguments
+    # names have been added as local bindings to the environment
     eval(body, env)
   end
 end

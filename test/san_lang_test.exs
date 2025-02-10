@@ -206,4 +206,19 @@ defmodule SanLangTest do
     assert SanLang.eval!("@pi * 1000", env: env) == 3140.0
     assert SanLang.eval!(~s|@vals["pi"] * 1000|, env: env) == 3140.0
   end
+
+  test "lambda call" do
+    assert SanLang.eval!("""
+           l = fn x -> x * 3 end 
+           l.(10)
+           """) == 30
+
+    assert SanLang.eval!("""
+           (fn x -> x * 3 end).(55)
+           """) == 165
+
+    assert SanLang.eval!("""
+           (fn x, y, z -> x * 100 + y * 10 + z end).(1,2,3) 
+           """) == 123
+  end
 end

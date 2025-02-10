@@ -30,3 +30,4 @@ san_lang-*.tar
 /src/san_lang_parser.erl
 
 .tool-versions
+.DS_Store
