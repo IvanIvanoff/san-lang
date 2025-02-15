@@ -152,14 +152,20 @@ defmodule SanLangTest do
   test "lambda in var is callable" do
     assert SanLang.eval!("""
            f = fn x -> x * 10 end
-           f(10) 
+           f(10)
            """) == 100
   end
 
-  # test "lambda is directly callable" do
+  test "lambda is directly callable" do
+    assert SanLang.eval!("""
+           (fn x -> x * 10 end)(10)
+           """) == 100
+  end
+
+  # test "lambda returning lambda " do
   #   assert SanLang.eval!("""
-  #          (fn x -> x * 10 end)(10)
-  #          """) == 100
+  #          (fn x -> fn y -> x * y end)(8)(9)
+  #          """) == 72
   # end
 
   test "map/2" do

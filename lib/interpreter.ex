@@ -80,6 +80,20 @@ defmodule SanLang.Interpreter do
     eval_parens_call(name, args, env)
   end
 
+  def eval({:parens_call, expr, args_values}, env) do
+    env =
+      case expr do
+        {:lambda_fn, _args, _body} = lambda ->
+          lambda_args_names = args_names_to_bind(lambda)
+          add_args_to_env(env, lambda_args_names, eval(args_values, env))
+
+        _other ->
+          env
+      end
+
+    eval(expr, env)
+  end
+
   def eval_list({:list, list_elements}, env) do
     Enum.map(list_elements, fn x -> eval(x, env) end)
   end
@@ -133,6 +147,7 @@ defmodule SanLang.Interpreter do
           args_names = args_names_to_bind(obj)
           args_values = eval(args, env)
           env = add_args_to_env(env, args_names, args_values)
+
           eval(obj, env)
         else
           raise UndefinedFunctionError,
@@ -174,7 +189,7 @@ defmodule SanLang.Interpreter do
   defp callable?({:lambda_fn, _args, _body}), do: true
   defp callable?(_), do: false
 
-  defp args_names_to_bind({:lambda_fn, args, _body}), do: args
+  defp args_names_to_bind({:lambda_fn, {:list, args}, _body}), do: args
 
   defp add_args_to_env(env, names, values) do
     [names, values]

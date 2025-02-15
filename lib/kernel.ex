@@ -26,7 +26,7 @@ defmodule SanLang.Kernel do
   end
 
   def filter(enumerable, {:lambda_fn, _args, _body} = lambda_fn, %Environment{} = env) do
-    {:lambda_fn, [{:identifier, _, local_binding}], _body} = lambda_fn
+    {:lambda_fn, {:list, [{:identifier, _, local_binding}]}, _body} = lambda_fn
 
     enumerable
     |> Enum.reduce({[], env}, fn elem, {acc, env} ->
@@ -57,7 +57,7 @@ defmodule SanLang.Kernel do
   defp reduce(enumerable, lambda_fn, env) do
     # This is because at the moment we support only 1-arity anonymous
     # functions. This next line is basically getting the function argument
-    {:lambda_fn, [{:identifier, _, local_binding}], _body} = lambda_fn
+    {:lambda_fn, {:list, [{:identifier, _, local_binding}]}, _body} = lambda_fn
 
     enumerable
     |> Enum.reduce({[], env}, fn elem, {acc, env} ->
