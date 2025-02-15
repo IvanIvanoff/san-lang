@@ -142,6 +142,26 @@ defmodule SanLangTest do
     assert SanLang.eval!("div(6, 4)") == 1
   end
 
+  test "can bind lambda to an identifier" do
+    assert {:lambda_fn, _, _} =
+             SanLang.eval!("""
+             f = fn x -> x * 10 end
+             """)
+  end
+
+  test "lambda in var is callable" do
+    assert SanLang.eval!("""
+           f = fn x -> x * 10 end
+           f(10) 
+           """) == 100
+  end
+
+  # test "lambda is directly callable" do
+  #   assert SanLang.eval!("""
+  #          (fn x -> x * 10 end)(10)
+  #          """) == 100
+  # end
+
   test "map/2" do
     env = SanLang.Environment.new()
 

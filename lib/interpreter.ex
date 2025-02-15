@@ -75,9 +75,9 @@ defmodule SanLang.Interpreter do
   def eval({{:comparison_expr, {op, _}}, lhs, rhs}, env) when op in ~w(== != < > <= >=)a,
     do: apply(Kernel, op, [eval(lhs, env), eval(rhs, env)])
 
-  # Named Function Calls
-  def eval({:function_call, {:identifier, _, function_name}, args}, env) do
-    eval_function_call(function_name, args, env)
+  # Call on an identifier
+  def eval({:parens_call, {:identifier, _, name}, args}, env) do
+    eval_parens_call(name, args, env)
   end
 
   def eval_list({:list, list_elements}, env) do
@@ -103,20 +103,19 @@ defmodule SanLang.Interpreter do
 
   @supported_functions SanLang.Kernel.__info__(:functions)
                        |> Enum.map(fn {name, _arity} -> to_string(name) end)
-  defp eval_function_call(function_name, args, env)
-       when is_binary(function_name) and function_name in @supported_functions do
+  # This is a call of a known function name
+  defp eval_parens_call(name, {:list, args}, env)
+       when is_binary(name) and name in @supported_functions do
     args =
-      Enum.map(
-        args,
-        fn
-          # The lambda evaluation is postponed until the lambda is called from
-          # within the map/filter/reduce body
-          {:lambda_fn, _args, _body} = lambda -> lambda
-          # The rest of the arguments can be evaluated before they are passed to the
-          # function
-          x -> eval(x, env)
-        end
-      )
+      args
+      |> Enum.map(fn
+        # The lambda evaluation is postponed until the lambda is called from
+        # within the map/filter/reduce body
+        {:lambda_fn, _args, _body} = lambda -> lambda
+        # The rest of the arguments can be evaluated before they are passed to the
+        # function
+        x -> eval(x, env)
+      end)
 
     # Each of the functions in the Kernel module takes an environment as the last argument
     args = args ++ [env]
@@ -124,11 +123,34 @@ defmodule SanLang.Interpreter do
     # errors during tests that :map_keys is not an existing atom, even though there is
     # such a function in the SanLang.Kernel module
     # credo:disable-for-next-line
-    apply(SanLang.Kernel, String.to_atom(function_name), args)
+    apply(SanLang.Kernel, String.to_atom(name), args)
   end
 
-  defp eval_function_call(function_name, _args, _env) when is_binary(function_name) do
-    raise UndefinedFunctionError, message: "Function #{function_name} is not supported"
+  defp eval_parens_call(name, args, env) when is_binary(name) do
+    case Environment.get_local_binding(env, name) do
+      {:ok, obj} ->
+        if callable?(obj) do
+          args_names = args_names_to_bind(obj)
+          args_values = eval(args, env)
+          env = add_args_to_env(env, args_names, args_values)
+          eval(obj, env)
+        else
+          raise UndefinedFunctionError,
+            message: """
+            #{name} is not a function or identifier pointing to a function
+
+            Got #{inspect(obj)} instead
+            """
+        end
+
+      {:error, _error} ->
+        # TODO: Improve the `get_local_binding` so it returns map intead of string
+        # from which we can extract `closest`
+        raise UndefinedFunctionError,
+          message: """
+          #{inspect(name)} is undefined.
+          """
+    end
   end
 
   defp eval_env_var({:env_var, _, "@" <> key}, env) do
@@ -147,5 +169,18 @@ defmodule SanLang.Interpreter do
 
   defp eval_lambda_fn({:lambda_fn, _args, body}, env) do
     eval(body, env)
+  end
+
+  defp callable?({:lambda_fn, _args, _body}), do: true
+  defp callable?(_), do: false
+
+  defp args_names_to_bind({:lambda_fn, args, _body}), do: args
+
+  defp add_args_to_env(env, names, values) do
+    [names, values]
+    |> Enum.zip()
+    |> Enum.reduce(env, fn {{:identifier, _, name}, value}, env_acc ->
+      Environment.add_local_binding(env_acc, name, value)
+    end)
   end
 end

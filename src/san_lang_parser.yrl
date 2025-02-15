@@ -8,7 +8,8 @@ Nonterminals
   boolean_literal and_op or_op
   comparison_rel_op comparison_comp_op
   access_expr access_expr_key
-  function_call function_call_args_list function_call_arg
+  parens_call
+  function_call_args_list function_call_arg
   lambda_fn lambda_args
   match_op
 .
@@ -97,7 +98,7 @@ value -> float : '$1'.
 value -> ascii_string : '$1'.
 value -> env_var : '$1'.
 value -> access_expr : '$1'.
-value -> function_call : '$1'.
+value -> parens_call : '$1'.
 value -> identifier : '$1'.
 value -> boolean_literal : '$1'.
 value -> list : '$1'.
@@ -141,9 +142,11 @@ lambda_fn -> 'fn' lambda_args '->' expr 'end' : {lambda_fn, '$2', '$4'}.
 lambda_args -> identifier ',' lambda_args : ['$1' | '$3'].
 lambda_args -> identifier : ['$1'].
 
-%% Named function call -- empty and with args.
-function_call -> identifier '('  ')' : {function_call, '$1', []}.
-function_call -> identifier '(' function_call_args_list ')' : {function_call, '$1', '$3'}.
+%% Identifier call (can resolve to function name, lambda, expr returning callable)
+parens_call -> identifier '('  ')' : {parens_call, '$1', {list, []}}.
+parens_call -> identifier '(' function_call_args_list ')' : {parens_call, '$1', {list, '$3'}}.
+parens_call -> '(' expr ')' '('  ')' : {parens_call, '$2', {list, []}}.
+parens_call -> '(' expr ')' '(' function_call_args_list ')' : {parens_call, '$2', {list, '$5'}}.
 
 %% Arguments list with at least 1 argument. Function calls with 0 arguments are
 %% handled directly by the function_call rule.
