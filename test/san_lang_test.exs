@@ -206,4 +206,9 @@ defmodule SanLangTest do
     assert SanLang.eval!("@pi * 1000", env: env) == 3140.0
     assert SanLang.eval!(~s|@vals["pi"] * 1000|, env: env) == 3140.0
   end
+
+  test "match operator has low precedence" do
+    assert SanLang.eval!("x = 1 + 2; x + 5") == 8
+    assert SanLang.eval!("x = 1 + 2; x + 5; x + 10") == 13
+  end
 end
