@@ -8,9 +8,11 @@ Nonterminals
   boolean_literal and_op or_op
   comparison_rel_op comparison_comp_op
   access_expr access_expr_key
-  function_call function_call_args_list function_call_arg
+  function_call lambda_call
+  function_call_args_list function_call_arg
   lambda_fn lambda_args
   match_op
+  dot_op
 .
 
 Terminals
@@ -34,6 +36,8 @@ Terminals
   'and' 'or'
   %% end of expression
   ';' newline
+  %% dot 
+  '.'
 .
 
 Rootsymbol
@@ -42,12 +46,14 @@ Rootsymbol
 
 %% Precedence
 Right 10 match_op.
+
 Left 50  or_op.
 Left 60  and_op.
 Left 100 comparison_comp_op. %% == !=
 Left 200 comparison_rel_op.  %% > < >= <=
 Left 300 dual_arithmetic_op. %% + -
 Left 400 mult_arithmetic_op. %% * /
+Left 500 dot_op.
 
 grammar -> eoe : {'__block__', []}.
 grammar -> expr_list : {'__block__', '$1'}.
@@ -55,6 +61,10 @@ grammar -> eoe expr_list : {'__block__', '$2'}.
 grammar -> expr_list eoe : {'__block__', '$1'}.
 grammar -> eoe expr_list eoe : {'__block__', '$2'}.
 grammar -> '$empty' : {'__block__',  []}.
+
+%% dot-Operator
+
+dot_op -> '.' : '.'.
 
 %% end of expression
 eol -> newline : '$1'.
@@ -98,6 +108,7 @@ value -> ascii_string : '$1'.
 value -> env_var : '$1'.
 value -> access_expr : '$1'.
 value -> function_call : '$1'.
+value -> lambda_call : '$1'.
 value -> identifier : '$1'.
 value -> boolean_literal : '$1'.
 value -> list : '$1'.
@@ -109,8 +120,8 @@ and_op -> 'and' : '$1'.
 or_op -> 'or' : '$1'.
 
 %% handle multiple levels of access operators: @data["key"], @data["key"]["key2"]
-access_expr -> identifier '[' access_expr_key ']' : {access_expr, '$1', '$3'}.
-access_expr -> env_var '[' access_expr_key ']' : {access_expr, '$1', '$3'}.
+access_expr -> identifier '[' access_expr_key ']'  : {access_expr, '$1', '$3'}.
+access_expr -> env_var '[' access_expr_key ']'     : {access_expr, '$1', '$3'}.
 access_expr -> access_expr '[' access_expr_key ']' : {access_expr, '$1', '$3'}.
 
 access_expr_key -> ascii_string : '$1'.
@@ -125,10 +136,10 @@ mult_arithmetic_op -> '/' : '/'.
 %% comparison operator
 comparison_comp_op -> '==' : {comparison_expr, '$1'}.
 comparison_comp_op -> '!=' : {comparison_expr, '$1'}.
-comparison_rel_op -> '<' : {comparison_expr, '$1'}.
-comparison_rel_op -> '<=' : {comparison_expr, '$1'}.
-comparison_rel_op -> '>' : {comparison_expr, '$1'}.
-comparison_rel_op -> '>=' : {comparison_expr, '$1'}.
+comparison_rel_op -> '<'   : {comparison_expr, '$1'}.
+comparison_rel_op -> '<='  : {comparison_expr, '$1'}.
+comparison_rel_op -> '>'   : {comparison_expr, '$1'}.
+comparison_rel_op -> '>='  : {comparison_expr, '$1'}.
 
 %% Lists
 list -> '[' ']' : {list, []}.
@@ -142,8 +153,14 @@ lambda_args -> identifier ',' lambda_args : ['$1' | '$3'].
 lambda_args -> identifier : ['$1'].
 
 %% Named function call -- empty and with args.
-function_call -> identifier '('  ')' : {function_call, '$1', []}.
+function_call -> identifier '('  ')'                        : {function_call, '$1', []}.
 function_call -> identifier '(' function_call_args_list ')' : {function_call, '$1', '$3'}.
+
+%% Lambda call. Wrap args in a list for easy eval
+lambda_call -> identifier dot_op '(' ')'                                : {lambda_fn_call, '$1', {list, []}}.
+lambda_call -> identifier dot_op '(' function_call_args_list ')'        : {lambda_fn_call, '$1', {list, '$4'}}.
+lambda_call -> lambda_call dot_op '(' function_call_args_list ')'       : {lambda_fn_call, '$1', {list, '$4'}}.
+lambda_call -> '(' lambda_fn ')' dot_op '(' function_call_args_list ')' : {lambda_fn_call, '$2', {list, '$6'}}.
 
 %% Arguments list with at least 1 argument. Function calls with 0 arguments are
 %% handled directly by the function_call rule.
@@ -153,4 +170,3 @@ function_call_args_list -> function_call_arg : ['$1'].
 function_call_arg -> value : '$1'.
 function_call_arg -> lambda_fn : '$1'.
 
-Erlang code.

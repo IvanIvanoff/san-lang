@@ -34,6 +34,7 @@ Rules.
 \-\>              : {token, {'->', TokenLoc}}.
 \,                : {token, {',',  TokenLoc}}.
 \"                : {token, {'"',  TokenLoc}}.
+\.                : {token, {'.', TokenLoc}}.
 {TRUE}            : {token, {true, TokenLoc}}.
 {FALSE}           : {token, {false, TokenLoc}}.
 {KW_FN}           : {token, {'fn', TokenLoc}}.
