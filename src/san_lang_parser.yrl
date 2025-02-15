@@ -41,13 +41,13 @@ Rootsymbol
 .
 
 %% Precedence
+Right 10 match_op.
 Left 50  or_op.
 Left 60  and_op.
 Left 100 comparison_comp_op. %% == !=
 Left 200 comparison_rel_op.  %% > < >= <=
 Left 300 dual_arithmetic_op. %% + -
 Left 400 mult_arithmetic_op. %% * /
-Right 1000 match_op.
 
 grammar -> eoe : {'__block__', []}.
 grammar -> expr_list : {'__block__', '$1'}.
