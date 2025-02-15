@@ -1,0 +1,4 @@
+%{
+  "redbug": {:hex, :redbug, "2.1.0", "30477a303bf6a62ef02d7c7ac53a6325104dbb7e791d52fe9e7f8b92488b07ef", [:rebar3], [], "hexpm", "55d6d59697481ca4cc5ad54749aa6d78299aa8a8096027e7ae1f59db9dc94c78"},
+  "rexbug": {:hex, :rexbug, "2.0.0-rc1", "0cf0dd3fea622364dfc2bfb7ef6f1d31af1c9c1f69e1db16ac21451b15200780", [:mix], [{:redbug, "~> 2.0", [hex: :redbug, repo: "hexpm", optional: false]}], "hexpm", "c54cd70b6a2835322d87c2b5d755f76b7d0529bec28b687fbe72b7fd083bc718"},
+}
