@@ -54,12 +54,16 @@ defmodule SanLang.Kernel do
     |> flat_reverse([])
   end
 
+  def reduce(enumerable, {:lambda_fn, _args, _body} = lambda_fn, %Environment{} = env) do
+    do_reduce(enumerable, lambda_fn, env)
+  end
+
   # Private functions
 
   defp flat_reverse([h | t], acc), do: flat_reverse(t, h ++ acc)
   defp flat_reverse([], acc), do: acc
 
-  defp reduce(enumerable, lambda_fn, env) do
+  defp do_reduce(enumerable, lambda_fn, env) do
     # This is because at the moment we support only 1-arity anonymous
     # functions. This next line is basically getting the function argument
     {:lambda_fn, {:list, [{:identifier, _, local_binding}]}, _body} = lambda_fn

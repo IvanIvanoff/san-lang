@@ -237,4 +237,23 @@ defmodule SanLangTest do
     assert SanLang.eval!("x = 1 + 2; x + 5") == 8
     assert SanLang.eval!("x = 1 + 2; x + 5; x + 10") == 13
   end
+
+  test "lambda call" do
+    assert SanLang.eval!("""
+           l = fn x -> x * 3 end 
+           l.(10)
+           """) == 30
+
+    assert SanLang.eval!("""
+           (fn x -> x * 3 end).(55)
+           """) == 165
+
+    assert SanLang.eval!("""
+           (fn x, y, z -> x * 100 + y * 10 + z end).(1,2,3) 
+           """) == 123
+
+    assert SanLang.eval!("""
+           (fn x -> fn y -> x + y end end).(5).(6)
+           """) == 11
+  end
 end
