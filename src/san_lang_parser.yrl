@@ -8,7 +8,7 @@ Nonterminals
   boolean_literal and_op or_op
   comparison_rel_op comparison_comp_op
   access_expr access_expr_key
-  parens_call
+  parens_call parens_wrapped_arguments
   function_call_args_list function_call_arg
   lambda_fn lambda_args
   match_op
@@ -87,7 +87,11 @@ expr -> identifier match_op expr : {'$2', '$1', '$3'}.
 %% Handle values
 expr -> value : '$1'.
 
+%% Handle lambdas
 expr -> lambda_fn : '$1'.
+
+%% Handle parens_call
+%% expr -> parens_call : '$1'.
 
 %% match op
 match_op -> '=' : '='.
@@ -110,8 +114,8 @@ and_op -> 'and' : '$1'.
 or_op -> 'or' : '$1'.
 
 %% handle multiple levels of access operators: @data["key"], @data["key"]["key2"]
-access_expr -> identifier '[' access_expr_key ']' : {access_expr, '$1', '$3'}.
-access_expr -> env_var '[' access_expr_key ']' : {access_expr, '$1', '$3'}.
+access_expr -> identifier '[' access_expr_key ']'  : {access_expr, '$1', '$3'}.
+access_expr -> env_var '[' access_expr_key ']'     : {access_expr, '$1', '$3'}.
 access_expr -> access_expr '[' access_expr_key ']' : {access_expr, '$1', '$3'}.
 
 access_expr_key -> ascii_string : '$1'.
@@ -126,10 +130,10 @@ mult_arithmetic_op -> '/' : '/'.
 %% comparison operator
 comparison_comp_op -> '==' : {comparison_expr, '$1'}.
 comparison_comp_op -> '!=' : {comparison_expr, '$1'}.
-comparison_rel_op -> '<' : {comparison_expr, '$1'}.
-comparison_rel_op -> '<=' : {comparison_expr, '$1'}.
-comparison_rel_op -> '>' : {comparison_expr, '$1'}.
-comparison_rel_op -> '>=' : {comparison_expr, '$1'}.
+comparison_rel_op -> '<'   : {comparison_expr, '$1'}.
+comparison_rel_op -> '<='  : {comparison_expr, '$1'}.
+comparison_rel_op -> '>'   : {comparison_expr, '$1'}.
+comparison_rel_op -> '>='  : {comparison_expr, '$1'}.
 
 %% Lists
 list -> '[' ']' : {list, []}.
@@ -138,18 +142,21 @@ list_elements -> value ',' list_elements : ['$1' | '$3'].
 list_elements -> value : ['$1'].
 
 %% Lambda function
-lambda_fn -> 'fn' lambda_args '->' expr 'end' : {lambda_fn, '$2', '$4'}.
+lambda_fn -> 'fn' lambda_args '->' expr 'end' : {lambda_fn, {list, '$2'}, '$4'}.
+
 lambda_args -> identifier ',' lambda_args : ['$1' | '$3'].
 lambda_args -> identifier : ['$1'].
 
 %% Identifier call (can resolve to function name, lambda, expr returning callable)
-parens_call -> identifier '('  ')' : {parens_call, '$1', {list, []}}.
-parens_call -> identifier '(' function_call_args_list ')' : {parens_call, '$1', {list, '$3'}}.
-parens_call -> '(' expr ')' '('  ')' : {parens_call, '$2', {list, []}}.
-parens_call -> '(' expr ')' '(' function_call_args_list ')' : {parens_call, '$2', {list, '$5'}}.
+parens_call -> identifier parens_wrapped_arguments : {parens_call, '$1', '$2'}.
+parens_call -> '(' expr ')' parens_wrapped_arguments : {parens_call, '$2', '$4'}.
+parens_call -> parens_call parens_wrapped_arguments : {parens_call, '$1', '$2'}.
 
 %% Arguments list with at least 1 argument. Function calls with 0 arguments are
 %% handled directly by the function_call rule.
+parens_wrapped_arguments -> '(' ')' : {list, []}.
+parens_wrapped_arguments -> '(' function_call_args_list ')' : {list, '$2'}.
+
 function_call_args_list -> function_call_arg ',' function_call_args_list : ['$1' | '$3'].
 function_call_args_list -> function_call_arg : ['$1'].
 
