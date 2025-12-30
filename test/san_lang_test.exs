@@ -143,7 +143,7 @@ defmodule SanLangTest do
   end
 
   test "can bind lambda to an identifier" do
-    assert {:lambda_fn, _, _} =
+    assert {:closure, _, _, _} =
              SanLang.eval!("""
              f = fn x -> x * 10 end
              """)
@@ -240,7 +240,7 @@ defmodule SanLangTest do
 
   test "lambda call" do
     assert SanLang.eval!("""
-           l = fn x -> x * 3 end 
+           l = fn x -> x * 3 end
            l.(10)
            """) == 30
 
@@ -249,7 +249,7 @@ defmodule SanLangTest do
            """) == 165
 
     assert SanLang.eval!("""
-           (fn x, y, z -> x * 100 + y * 10 + z end).(1,2,3) 
+           (fn x, y, z -> x * 100 + y * 10 + z end).(1,2,3)
            """) == 123
 
     assert SanLang.eval!("""
