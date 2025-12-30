@@ -26,14 +26,9 @@ defmodule SanLang.Interpreter do
   end
 
   def eval({:=, {:identifier, _, name}, expr}, env) do
-    value =
-      case expr do
-        {:lambda_fn, _args, _body} = lambda -> lambda
-        _ -> eval(expr, env)
-      end
-
+    # Evaluate the expression - this will create a closure for lambda_fn
+    value = eval(expr, env)
     env = Environment.add_local_binding(env, name, value)
-
     {value, env}
   end
 
@@ -43,8 +38,63 @@ defmodule SanLang.Interpreter do
   def eval({:ascii_string, _, value}, _env), do: value
   def eval({:env_var, _, _} = env_var, env), do: eval_env_var(env_var, env)
   def eval({:identifier, _, _} = identifier, env), do: eval_identifier(identifier, env)
-  def eval({:lambda_fn, _args, _body} = lambda, env), do: eval_lambda_fn(lambda, env)
   def eval({:list, _} = list, env), do: eval_list(list, env)
+
+  # When evaluating a lambda definition, create a closure that captures the current environment
+  def eval({:lambda_fn, {:list, args}, body}, env) do
+    {:closure, args, body, env.local_bindings}
+  end
+
+  # Lambda call on a closure - merge captured environment, bind arguments, evaluate body
+  def eval(
+        {:lambda_fn_call, {:closure, args_names, body, captured_bindings}, {:list, _} = args_values},
+        env
+      ) do
+    args_values = eval(args_values, env)
+
+    # Start with captured environment (closure bindings)
+    env =
+      Enum.reduce(captured_bindings, env, fn {name, value}, acc ->
+        Environment.add_local_binding(acc, name, value)
+      end)
+
+    # Add argument bindings
+    env =
+      [args_names, args_values]
+      |> Enum.zip()
+      |> Enum.reduce(env, fn {{:identifier, _, name}, value}, acc_env ->
+        Environment.add_local_binding(acc_env, name, value)
+      end)
+
+    eval(body, env)
+  end
+
+  # Lambda call on raw lambda_fn from parser (e.g. inline lambda calls)
+  # First convert to closure, then call
+  def eval(
+        {:lambda_fn_call, {:lambda_fn, _args, _body} = lambda, args},
+        env
+      ) do
+    closure = eval(lambda, env)
+    eval({:lambda_fn_call, closure, args}, env)
+  end
+
+  # Lambda call on an identifier - resolve to closure and call
+  def eval({:lambda_fn_call, {:identifier, _, name}, args}, env) do
+    {:ok, closure} = Environment.get_local_binding(env, name)
+    eval({:lambda_fn_call, closure, args}, env)
+  end
+
+  # Chained lambda calls - evaluate inner call first to get closure, then call with outer args
+  def eval({:lambda_fn_call, {:lambda_fn_call, _, _} = inner_call, args}, env) do
+    closure = eval(inner_call, env)
+    eval({:lambda_fn_call, closure, args}, env)
+  end
+
+  # Function call: identifier(args)
+  def eval({:function_call, {:identifier, _, name}, args}, env) do
+    eval_parens_call(name, {:list, args}, env)
+  end
 
   def eval({{boolean_op, _}, _, _} = boolean_expr, env) when boolean_op in [:and, :or],
     do: eval_boolean_expr(boolean_expr, env)
@@ -81,17 +131,10 @@ defmodule SanLang.Interpreter do
   end
 
   def eval({:parens_call, expr, args_values}, env) do
-    env =
-      case expr do
-        {:lambda_fn, _args, _body} = lambda ->
-          lambda_args_names = args_names_to_bind(lambda)
-          add_args_to_env(env, lambda_args_names, eval(args_values, env))
-
-        _other ->
-          env
-      end
-
-    eval(expr, env)
+    # Evaluate the expression to get a closure
+    closure = eval(expr, env)
+    # Call the closure with args
+    eval({:lambda_fn_call, closure, args_values}, env)
   end
 
   def eval_list({:list, list_elements}, env) do
@@ -121,15 +164,15 @@ defmodule SanLang.Interpreter do
   defp eval_parens_call(name, {:list, args}, env)
        when is_binary(name) and name in @supported_functions do
     args =
-      args
-      |> Enum.map(fn
-        # The lambda evaluation is postponed until the lambda is called from
-        # within the map/filter/reduce body
-        {:lambda_fn, _args, _body} = lambda -> lambda
-        # The rest of the arguments can be evaluated before they are passed to the
-        # function
-        x -> eval(x, env)
-      end)
+      Enum.map(
+        args,
+        fn
+          # Convert lambda_fn to closure, capturing current environment
+          {:lambda_fn, _args, _body} = lambda -> eval(lambda, env)
+          # The rest of the arguments can be evaluated before they are passed to the function
+          x -> eval(x, env)
+        end
+      )
 
     # Each of the functions in the Kernel module takes an environment as the last argument
     args = args ++ [env]
@@ -142,25 +185,19 @@ defmodule SanLang.Interpreter do
 
   defp eval_parens_call(name, args, env) when is_binary(name) do
     case Environment.get_local_binding(env, name) do
+      {:ok, {:closure, _, _, _} = closure} ->
+        # Call the closure with the provided args
+        eval({:lambda_fn_call, closure, args}, env)
+
       {:ok, obj} ->
-        if callable?(obj) do
-          args_names = args_names_to_bind(obj)
-          args_values = eval(args, env)
-          env = add_args_to_env(env, args_names, args_values)
+        raise UndefinedFunctionError,
+          message: """
+          #{name} is not a function or identifier pointing to a function
 
-          eval(obj, env)
-        else
-          raise UndefinedFunctionError,
-            message: """
-            #{name} is not a function or identifier pointing to a function
-
-            Got #{inspect(obj)} instead
-            """
-        end
+          Got #{inspect(obj)} instead
+          """
 
       {:error, _error} ->
-        # TODO: Improve the `get_local_binding` so it returns map intead of string
-        # from which we can extract `closest`
         raise UndefinedFunctionError,
           message: """
           #{inspect(name)} is undefined.
@@ -182,20 +219,4 @@ defmodule SanLang.Interpreter do
     end
   end
 
-  defp eval_lambda_fn({:lambda_fn, _args, body}, env) do
-    eval(body, env)
-  end
-
-  defp callable?({:lambda_fn, _args, _body}), do: true
-  defp callable?(_), do: false
-
-  defp args_names_to_bind({:lambda_fn, {:list, args}, _body}), do: args
-
-  defp add_args_to_env(env, names, values) do
-    [names, values]
-    |> Enum.zip()
-    |> Enum.reduce(env, fn {{:identifier, _, name}, value}, env_acc ->
-      Environment.add_local_binding(env_acc, name, value)
-    end)
-  end
 end
