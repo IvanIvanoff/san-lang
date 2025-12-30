@@ -160,7 +160,6 @@ parens_wrapped_arguments -> '(' function_call_args_list ')' : {list, '$2'}.
 function_call_args_list -> function_call_arg ',' function_call_args_list : ['$1' | '$3'].
 function_call_args_list -> function_call_arg : ['$1'].
 
-function_call_arg -> value : '$1'.
-function_call_arg -> lambda_fn : '$1'.
+function_call_arg -> expr : '$1'.
 
 Erlang code.

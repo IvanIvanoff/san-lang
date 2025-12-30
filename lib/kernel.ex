@@ -2,6 +2,11 @@ defmodule SanLang.Kernel do
   alias SanLang.Environment
   alias SanLang.Interpreter
 
+  def print(arg, _env) do
+    IO.inspect(arg)
+    arg
+  end
+
   def pow(base, pow, _env) when is_number(base) and is_number(pow) do
     base ** pow
   end
